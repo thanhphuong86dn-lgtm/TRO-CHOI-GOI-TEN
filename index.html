@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3 Trò Chơi Gọi Tên - Cô Phương</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- THƯ VIỆN KIM TUYẾN CONFETTI (Load trực tiếp) -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root { --bg-main: #fffde7; --sidebar-bg: #ffffff; --orange: #ff9f43; --text-dark: #2d3436; --border: #e0e0e0; }
+        body { margin: 0; font-family: 'Nunito', 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; height: 100vh; background: var(--bg-main); overflow: hidden; }
+        
+        .header { height: 60px; background: white; border-bottom: 2px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); z-index: 20; }
+        .logo-text { font-size: 1.3rem; font-weight: 900; color: #1e272e; display: flex; align-items: center; gap: 10px; }
+        .badge-mode { background: #ffeaa7; color: #d63031; padding: 4px 12px; border-radius: 15px; font-size: 0.85rem; font-weight: bold; border: 1px solid #ff7675; margin-left: 15px;}
+        
+        .app-body { display: flex; flex: 1; overflow: hidden; }
+        
+        /* CỘT QUẢN LÝ (TRÁI CÙNG) */
+        .sidebar { width: 280px; background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.03); }
+        .btn-manage { background: white; border: 2px dashed #ff9f43; color: #ff9f43; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-manage:hover { background: #fff3e0; }
+        .sidebar-group-title { font-size: 0.85rem; font-weight: bold; color: #b2bec3; text-transform: uppercase; margin-top: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        #class-list-sidebar { display: flex; flex-direction: column; gap: 8px; }
+        .class-item-btn { padding: 12px 15px; background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; cursor: pointer; font-weight: 700; color: var(--text-dark); display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .class-item-btn:hover { background: #eee; }
+        .class-item-btn.active { background: #ff9f43; color: white; border-color: #ff9f43; }
+        
+        /* CỘT CHỌN TRÒ CHƠI */
+        .game-menu { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .game-btn { padding: 12px; border-radius: 8px; background: white; border: 1px solid #ddd; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 10px; transition: 0.2s; color: #333; }
+        .game-btn:hover { background: #f5f6fa; transform: translateX(3px); }
+        .game-btn.active { background: #0984e3; color: white; border-color: #0984e3; box-shadow: 0 4px 10px rgba(9, 132, 227, 0.3); }
+        .game-btn i { font-size: 1.2rem; width: 25px; text-align: center; }
+
+        /* KHU VỰC CHÍNH */
+        .main-content { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; background: #f5f6fa;}
+        .game-screen { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; justify-content: center; }
+        .game-screen.active { display: flex; }
+
+        /* =========================================
+           GAME 1: VÒNG QUAY (CODE CỦA CÔ PHƯƠNG GIỮ NGUYÊN)
+           ========================================= */
+        #screen-wheel { background-image: radial-gradient(circle, #fffde7 0%, #fff9c4 100%); }
+        .wheel-wrapper { position: relative; display: flex; justify-content: center; align-items: center; filter: drop-shadow(0 15px 25px rgba(0,0,0,0.2)); }
+        canvas { background: transparent; z-index: 2; }
+        .pointer { position: absolute; top: -10px; z-index: 10; width: 40px; height: 55px; background: #eb4d4b; clip-path: polygon(50% 100%, 0 0, 100% 0); display: flex; justify-content: center; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3));}
+        .pointer::after { content: ''; position: absolute; top: 10px; width: 12px; height: 12px; background: white; border-radius: 50%; }
+        .center-spin-btn { position: absolute; width: 85px; height: 85px; background: linear-gradient(145deg, #ff6b81, #ff4757); border: 4px solid white; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 1.1rem; cursor: pointer; z-index: 5; box-shadow: inset 0 0 10px rgba(0,0,0,0.2), 0 5px 15px rgba(0,0,0,0.3); }
+        .center-spin-btn:active { transform: scale(0.95); }
+        .bottom-controls { position: absolute; bottom: 30px; display: flex; gap: 20px; align-items: center; z-index: 10; }
+        .big-spin-btn { background: linear-gradient(to right, #ff7f50, #ff6347); color: white; border: none; padding: 15px 40px; border-radius: 30px; font-size: 1.3rem; font-weight: 900; cursor: pointer; border: 2px solid white; transition: 0.2s; box-shadow: 0 6px 15px rgba(255, 99, 71, 0.4);}
+        .big-spin-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 99, 71, 0.5); }
+        .indicator-box { background: white; padding: 12px 25px; border-radius: 30px; font-weight: bold; color: #2d3436; border: 2px solid #ffeaa7; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1.1rem; }
+
+        /* =========================================
+           GAME 2: BẮN BÓNG BAY (BẦU TRỜI XANH PRO)
+           ========================================= */
+        #screen-balloon { background: linear-gradient(to bottom, #87CEEB 0%, #a1d9f0 40%, #E0F6FF 100%); position: relative;}
+        /* Mây trang trí */
+        #screen-balloon::before { content:''; position:absolute; top:5%; left:15%; width:200px; height:60px; background:white; border-radius:50px; opacity:0.7; pointer-events:none; filter:blur(4px); box-shadow: 300px 50px 0 -10px white, -100px 200px 0 10px white, 500px 150px 0 20px white;}
+        
+        .balloon-header { width: 92%; background: rgba(255, 255, 255, 0.8); border-radius: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; color: #2d3436; border: 2px solid #f1c40f; margin-top: 15px; z-index: 10; box-shadow: 0 5px 15px rgba(0,0,0,0.1); backdrop-filter: blur(5px);}
+        
+        .balloon-area { flex: 1; width: 100%; position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 30px 15px; padding: 40px 20px; overflow-y: auto; }
+        
+        /* Thiết kế Bóng Bay 3D chuyên nghiệp */
+        .balloon { 
+            width: 85px; height: 105px; 
+            border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%; 
+            position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 12px;
+            box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), inset 5px 5px 15px rgba(255,255,255,0.7), 0 10px 15px rgba(0,0,0,0.2); 
+            animation: floatSky 4s ease-in-out infinite; 
+            cursor: default; /* Bỏ con trỏ chuột vì không cho nhấn nữa */
+        }
+        /* Dây bóng */
+        .balloon::after { content: ''; position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); width: 2px; height: 25px; background: rgba(255,255,255,0.8); z-index: -1;}
+        /* Nút thắt bóng */
+        .balloon::before { content: ''; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 12px; height: 8px; border-radius: 50%; background: inherit; filter: brightness(0.8); }
+        
+        /* Icon trong vòng trắng */
+        .balloon-icon { font-size: 26px; background: #ffffff; border-radius: 50%; width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 6px rgba(0,0,0,0.15);}
+        /* Tên trong huy hiệu đen (Nằm đè lên quả bóng) */
+        .balloon-name { position: absolute; bottom: 10px; background: #1e272e; color: #fff; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.9); white-space: nowrap; max-width: 80px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 8px rgba(0,0,0,0.3);}
+        
+        @keyframes floatSky { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-15px) rotate(2deg); } }
+        
+        /* CSS PHI TIÊU */
+        .dart-element { position: absolute; font-size: 45px; z-index: 100; transition: all 0.3s ease-in; display: none; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); pointer-events: none;}
+
+        .balloon-bottom { width: 92%; background: rgba(255, 255, 255, 0.9); padding: 15px 25px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; z-index: 10; border: 2px solid #576574; box-shadow: 0 10px 20px rgba(0,0,0,0.1); backdrop-filter: blur(5px);}
+        .btn-shoot { background: linear-gradient(to right, #ff4757, #e84118); color: white; border: 2px solid #fff; padding: 15px 35px; border-radius: 30px; font-weight: 900; font-size: 1.2rem; cursor: pointer; transition: 0.2s; box-shadow: 0 5px 15px rgba(232, 65, 24, 0.4);}
+        .btn-shoot:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(232, 65, 24, 0.6); }
+
+        /* =========================================
+           GAME 3: MÁY GẮP THÚ (ĐIỀU CHỈNH GẮP TRÚNG TÊN)
+           ========================================= */
+        #screen-claw { background: radial-gradient(circle at top, #301847 0%, #0f0518 100%); position: relative; }
+        #screen-claw::before { content:''; position:absolute; top:0; left:0; right:0; bottom:0; background-image: linear-gradient(rgba(156, 136, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(156, 136, 255, 0.1) 1px, transparent 1px); background-size: 40px 40px; pointer-events:none; }
+        .claw-header { width: 92%; background: linear-gradient(90deg, #4a1e9e, #6c5ce7); border-radius: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; color: white; border: 2px solid #f1c40f; margin-top: 15px; box-shadow: 0 5px 20px rgba(108, 92, 231, 0.4); z-index: 2;}
+        .claw-machine-area { flex: 1; width: 92%; background: rgba(0,0,0,0.4); border: 3px solid #ff4757; border-radius: 15px; margin-top: 15px; position: relative; display: flex; flex-direction: column; overflow: hidden; box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 0 20px rgba(255,71,87,0.3); z-index: 2;}
+        
+        .claw-track { height: 12px; background: #7f8fa6; width: 100%; border-bottom: 3px solid #353b48; position: relative; }
+        .claw-crane { position: absolute; top: 0; left: 50%; transform: translateX(-50%); transition: left 1s ease-in-out; display: flex; flex-direction: column; align-items: center; z-index: 10;}
+        .crane-box { width: 50px; height: 25px; background: #f1c40f; border-radius: 0 0 8px 8px; border: 2px solid #e67e22; border-top: none; position: relative; display: flex; justify-content: center;}
+        .crane-box::after { content: ''; width: 10px; height: 10px; background: #3498db; border-radius: 50%; margin-top: 5px; box-shadow: 0 0 5px #3498db;}
+        .crane-wire { width: 4px; background: #bdc3c7; height: 35px; transition: height 1.2s ease-in-out; box-shadow: -1px 0 2px rgba(0,0,0,0.5);}
+        
+        /* Bọc chung càng gắp và cái móc chứa đồ vật */
+        .crane-bottom-assembly { position: relative; display: flex; flex-direction: column; align-items: center; width: 0; }
+        .crane-claw-wrapper { position: absolute; top: -5px; width: 70px; height: 50px; transition: transform 0.3s; transform-origin: top center; z-index: 10;}
+        .crane-claw-wrapper.closed { transform: scaleX(0.6); }
+        .arm-left, .arm-right { position: absolute; width: 30px; height: 40px; border: 6px solid #bdc3c7; top: 0; border-top: none; }
+        .arm-left { left: 0; border-right: none; border-radius: 0 0 0 30px; border-bottom: 8px solid #ff4757; }
+        .arm-right { right: 0; border-left: none; border-radius: 0 0 30px 0; border-bottom: 8px solid #ff4757; }
+        .claw-joint { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 16px; height: 16px; background: #7f8fa6; border-radius: 50%; z-index: 2;}
+
+        /* Khung móc để gắp được thẻ tên không bị móp */
+        #crane-hook { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); width: 80px; display: flex; justify-content: center; z-index: 15; }
+
+        .prizes-area { flex: 1; display: flex; flex-wrap: wrap-reverse; justify-content: center; align-content: flex-start; padding: 20px; gap: 15px; }
+        
+        /* KHỐI ĐỒ CHƠI KÈM TÊN Ở DƯỚI ĐỂ GẮP CHUẨN XÁC */
+        .prize-item { display: flex; flex-direction: column; align-items: center; position: relative; margin-bottom: 15px; z-index: 5;}
+        
+        .prize-ball { width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0.2) 60%, rgba(0,0,0,0.1)); border: 3px solid; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset -5px -5px 15px rgba(0,0,0,0.3), 0 10px 10px rgba(0,0,0,0.4); }
+        .prize-ball::before { content:''; position:absolute; top: 5px; left: 10px; width: 20px; height: 10px; background: rgba(255,255,255,0.8); border-radius: 50%; transform: rotate(-45deg); z-index: 3;}
+        .prize-emoji { font-size: 34px; z-index: 2; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));}
+        
+        /* Thẻ tên hiển thị trọn vẹn bên dưới bóng */
+        .prize-name-tag { position: absolute; bottom: -12px; background: #2d3436; color: white; font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: bold; border: 1px solid #fff; white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; z-index: 4; box-shadow: 0 4px 6px rgba(0,0,0,0.3);}
+        
+        .claw-controls { width: 92%; background: rgba(19, 7, 46, 0.9); padding: 20px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 2px solid #9c88ff; margin-top: 15px; z-index: 2; box-shadow: 0 10px 20px rgba(0,0,0,0.4);}
+        .btn-grab { background: linear-gradient(to bottom, #ff4757, #c0392b); color: white; border: 2px solid #ff9f43; padding: 15px 50px; border-radius: 12px; font-weight: 900; font-size: 1.4rem; cursor: pointer; box-shadow: 0 6px 0 #8e44ad, 0 15px 20px rgba(0,0,0,0.4); transition: 0.1s; display: flex; align-items: center; gap: 10px;}
+        .btn-grab:active { transform: translateY(6px); box-shadow: 0 0 0 #8e44ad, 0 5px 10px rgba(0,0,0,0.4); }
+
+        /* CÁC MODAL (CHUNG BẢN QUẢN LÝ LỚP & CHÚC MỪNG) */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: white; width: 600px; border-radius: 15px; overflow: hidden; animation: popIn 0.3s ease-out; }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-header { background: linear-gradient(to right, #ff9f43, #ff7f50); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { margin: 0; font-size: 1.3rem; }
+        .close-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+        .modal-body { padding: 20px; background: #fdfdfd; }
+        .add-class-section { background: #fff3e0; border: 1px dashed #ff9f43; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        .add-class-section input[type="text"] { flex: 1; padding: 10px 15px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; outline: none; }
+        .upload-btn-fake { background: #0984e3; color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        #real-excel-upload { display: none; }
+        .saved-classes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; max-height: 300px; overflow-y: auto; }
+        .class-card { background: white; border: 1px solid #eee; border-radius: 10px; padding: 15px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
+        .btn-play { flex: 1; background: #ff9f43; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-delete { background: #ff7675; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; }
+        
+        .winner-modal { background: white; width: 450px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; flex-direction: column; align-items: center; padding: 30px 20px; position: relative; border: 4px solid #feca57; z-index: 1000;}
+        .winner-badge { position: absolute; top: -15px; background: #feca57; color: white; padding: 5px 20px; border-radius: 20px; font-weight: bold; font-size: 1rem; border: 2px solid white; display: flex; align-items: center; gap: 5px;}
+        .close-winner { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; color: #aaa; cursor: pointer; background: none; border: none; }
+        .winner-icon { font-size: 60px; background: #f1f2f6; width: 100px; height: 100px; display: flex; justify-content: center; align-items: center; border-radius: 20px; margin-top: 10px; box-shadow: inset 0 0 10px rgba(0,0,0,0.05); }
+        .winner-name { font-size: 2rem; color: #e84393; margin: 15px 0 5px 0; font-weight: 900; text-align: center; }
+        .winner-subtitle { background: #fff3e0; color: #d35400; padding: 5px 15px; border-radius: 15px; font-size: 0.9rem; font-weight: bold; margin-bottom: 15px; }
+        .winner-quote { font-style: italic; color: #636e72; text-align: center; margin-bottom: 25px; padding: 0 20px; }
+        .winner-actions { display: flex; gap: 10px; width: 100%; justify-content: center; }
+        .btn-remove, .btn-close, .btn-spin-again { border: none; padding: 12px 15px; border-radius: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s;}
+        .btn-remove { background: #f5f6fa; color: #2d3436; border: 1px solid #dcdde1; }
+        .btn-remove:hover { background: #e1b12c; color: white; border-color: #e1b12c; }
+        .btn-close { background: #dfe6e9; color: #2d3436; }
+        .btn-spin-again { background: #00b894; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo-text">🎯 Trò Chơi Gọi Tên - PTP</div>
+    </div>
+
+    <div class="app-body">
+        
+        <!-- CỘT BÊN TRÁI -->
+        <div class="sidebar">
+            <button class="btn-manage" onclick="openModal()">
+                <i class="fas fa-folder-plus"></i> Quản lý & Thêm lớp mới
+            </button>
+            <div class="sidebar-group-title">LỚP ĐANG CHỌN</div>
+            <div style="font-weight: bold; color: #d63031; font-size: 1.1rem; text-align: center; background: #ffeaa7; padding: 8px; border-radius: 8px; border: 1px dashed #e17055;" id="current-class-display">Chưa chọn lớp</div>
+            
+            <div class="sidebar-group-title" style="margin-top: 20px;">CHỌN TRÒ CHƠI</div>
+            <div class="game-menu">
+                <div class="game-btn active" onclick="switchGame('wheel', this)">
+                    <i class="fas fa-dharmachakra" style="color: #ff4757;"></i> Vòng Quay
+                </div>
+                <div class="game-btn" onclick="switchGame('balloon', this)">
+                    <span style="font-size: 1.4rem; width: 25px; text-align: center;">🎈</span> Bóng Bay Gọi Tên
+                </div>
+                <div class="game-btn" onclick="switchGame('claw', this)">
+                    <i class="fas fa-robot" style="color: #9c88ff;"></i> Máy Gắp Thú
+                </div>
+            </div>
+        </div>
+
+        <!-- KHU VỰC CHÍNH -->
+        <div class="main-content">
+            
+            <!-- GAME 1: VÒNG QUAY (CODE CỦA CÔ 100%) -->
+            <div id="screen-wheel" class="game-screen active">
+                <div class="wheel-wrapper">
+                    <div class="pointer"></div>
+                    <canvas id="wheelCanvas" width="550" height="550"></canvas>
+                    <div class="center-spin-btn" onclick="playWheel()">QUAY</div>
+                </div>
+                <div class="bottom-controls">
+                    <div class="indicator-box">👉 Đang chọn: <span id="current-pointing">Sẵn sàng!</span></div>
+                    <button class="big-spin-btn" onclick="playWheel()">✨ BẤM ĐỂ QUAY VÒNG!</button>
+                </div>
+            </div>
+
+            <!-- GAME 2: BẮN BÓNG BAY -->
+            <div id="screen-balloon" class="game-screen">
+                <div id="dart-item" class="dart-element">🎯</div>
+                <div class="balloon-header">
+                    <div style="font-weight: bold; font-size: 1.2rem;"><i class="fas fa-cloud" style="color:#0984e3;"></i> Bầu Trời Tiên Cảnh - Bắn Bóng Bay</div>
+                    <div style="background: #e84118; color: white; padding: 5px 15px; border-radius: 15px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">Sẵn sàng: <span id="balloon-count">0</span> bóng</div>
+                </div>
+                
+                <div class="balloon-area" id="balloon-area"></div>
+
+                <div class="balloon-bottom">
+                    <div style="color: #2d3436; font-weight: bold;"><i class="fas fa-info-circle"></i> Bấm nút ngẫu nhiên để phóng phi tiêu làm nổ bóng</div>
+                    <button class="btn-shoot" onclick="shootRandomBalloon()">🎯 PHÓNG PHI TIÊU NGẪU NHIÊN</button>
+                </div>
+            </div>
+
+            <!-- GAME 3: MÁY GẮP THÚ ARCADE -->
+            <div id="screen-claw" class="game-screen">
+                <div class="claw-header">
+                    <div style="font-weight: 900; font-size: 1.2rem; letter-spacing: 1px;"><i class="fas fa-gamepad"></i> MÁY GẮP THÚ MÔ HÌNH</div>
+                    <div style="background: #f1c40f; color: #2d3436; padding: 5px 15px; border-radius: 15px; font-weight: 900;">✨ 100% CÓ QUÀ</div>
+                </div>
+
+                <div class="claw-machine-area">
+                    <div class="claw-track">
+                        <div class="claw-crane" id="claw-crane">
+                            <div class="crane-box"></div>
+                            <div class="crane-wire" id="crane-wire"></div>
+                            
+                            <!-- Bọc ngàm gắp và thẻ tên riêng để kéo không bị móp -->
+                            <div class="crane-bottom-assembly" style="position: relative; display: flex; justify-content: center; align-items: flex-start; width: 0;">
+                                <div class="crane-claw-wrapper" id="crane-claw">
+                                    <div class="claw-joint"></div>
+                                    <div class="arm-left"></div>
+                                    <div class="arm-right"></div>
+                                </div>
+                                <div id="crane-hook"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="prizes-area" id="prizes-area"></div>
+                </div>
+
+                <div class="claw-controls">
+                    <div style="color: #feca57; font-weight: bold; border: 2px solid #feca57; padding: 10px 20px; border-radius: 10px; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-coins" style="font-size: 1.5rem;"></i> MIỄN PHÍ <br> Còn <span id="claw-count">0</span> bạn
+                    </div>
+                    <button class="btn-grab" onclick="playClaw()"><i class="fas fa-hand-paper"></i> HẠ TAY GẮP THÚ NGAY</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL QUẢN LÝ LỚP HỌC -->
+    <div class="modal-overlay" id="classModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-chalkboard-teacher"></i> Quản Lý Lớp Học & Danh Sách</h2>
+                <button class="close-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="add-class-section">
+                    <i class="fas fa-plus-circle" style="color: #ff9f43; font-size: 1.5rem;"></i>
+                    <input type="text" id="newClassName" placeholder="Nhập tên lớp (VD: Lớp 10/8)">
+                    <label class="upload-btn-fake">
+                        <i class="fas fa-file-excel"></i> Nạp Excel
+                        <input type="file" id="real-excel-upload" accept=".xlsx, .xls" onchange="handleExcelUpload(event)">
+                    </label>
+                </div>
+                <div class="saved-classes-grid" id="modal-class-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CHÚC MỪNG -->
+    <div class="modal-overlay" id="winnerModal">
+        <div class="winner-modal">
+            <div class="winner-badge">🎉 XIN CHÚC MỪNG BẠN! 🎉</div>
+            <button class="close-winner" onclick="closeWinnerModal()"><i class="fas fa-times"></i></button>
+            <div class="winner-icon" id="winner-icon-display">🚀</div>
+            <div class="winner-name" id="winner-name-display">Tên Học Sinh</div>
+            <div class="winner-subtitle" id="winner-subtitle-display">🌟 Siêu sao</div>
+            <div class="winner-quote" id="winner-quote-display">"..."</div>
+            <div class="winner-actions">
+                <button class="btn-remove" onclick="removeCurrentWinner()"><i class="fas fa-user-minus"></i> Tạm gỡ tên</button>
+                <button class="btn-close" onclick="closeWinnerModal()"><i class="fas fa-check"></i> Xong & Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            let savedClasses = {};
+            try { 
+                const data = localStorage.getItem('teacherPhuongClasses'); 
+                if(data) savedClasses = JSON.parse(data); 
+            } catch(e) {}
+
+            let activeClassName = "";
+            let students = []; 
+            let currentWinnerIndex = -1; 
+            
+            const animalEmojis = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🦉','🦄','🐝','🐞','🦋'];
+            const colors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#9c88ff", "#ff6b81", "#00b894", "#fdcb6e", "#e84393", "#0984e3"];
+            const subtitles = ["🌟 Siêu sao làm sáng bừng phòng học","🔥 Chiến thần bảng đen","🧠 Chuyên gia giải đố","⚡ Tia chớp toán học","🎯 Xạ thủ điểm 10","👑 Gương mặt vàng học tập","💡 Thiên tài ẩn dật","🚀 Nhân tố bí ẩn của lớp"];
+            const quotes = ["\"Đừng lo lắng, hãy tự tin trả lời nhé!\"","\"Hít một hơi thật sâu, câu hỏi này dễ ẹc mà!\"","\"Toả sáng đi nào, bục giảng hôm nay là của em!\"","\"Bình tĩnh, tự tin, chiến thắng!\"","\"Cô tin em sẽ có câu trả lời xuất sắc!\"","\"May mắn đã gọi tên, hãy thể hiện hết mình nhé!\""];
+            
+            // ==========================================
+            // CỤM ÂM THANH
+            // ==========================================
+            let audioCtx = null;
+            try { const AC = window.AudioContext || window.webkitAudioContext; if(AC) audioCtx = new AC(); } catch(e) {}
+            
+            function playTickSound() {
+                if(!audioCtx) return;
+                try {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    const osc = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(600, audioCtx.currentTime); 
+                    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime); 
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                    osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.05);
+                } catch(e) {}
+            }
+
+            // ÂM THANH NÉM PHI TIÊU VÀ NỔ BÓNG (Tạo trực tiếp offline)
+            window.playDartAndPopSound = function() {
+                if(!audioCtx) return;
+                try {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    
+                    // Tiếng phi tiêu bay (vút)
+                    const oscDart = audioCtx.createOscillator();
+                    const gainDart = audioCtx.createGain();
+                    oscDart.connect(gainDart); gainDart.connect(audioCtx.destination);
+                    oscDart.type = 'sine';
+                    oscDart.frequency.setValueAtTime(800, audioCtx.currentTime);
+                    oscDart.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+                    gainDart.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gainDart.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.05);
+                    gainDart.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+                    oscDart.start(audioCtx.currentTime);
+                    oscDart.stop(audioCtx.currentTime + 0.15);
+
+                    // Tiếng bóng nổ (Bùm nhỏ)
+                    const oscPop = audioCtx.createOscillator();
+                    const gainPop = audioCtx.createGain();
+                    oscPop.connect(gainPop); gainPop.connect(audioCtx.destination);
+                    oscPop.type = 'square';
+                    oscPop.frequency.setValueAtTime(150, audioCtx.currentTime + 0.15);
+                    oscPop.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.25);
+                    gainPop.gain.setValueAtTime(0.2, audioCtx.currentTime + 0.15);
+                    gainPop.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                    oscPop.start(audioCtx.currentTime + 0.15);
+                    oscPop.stop(audioCtx.currentTime + 0.25);
+                } catch(e) {}
+            }
+
+            const winAudio = new Audio('https://actions.google.com/sounds/v1/crowds/crowd_cheer.ogg');
+            const fanfareAudio = new Audio('https://actions.google.com/sounds/v1/cartoon/cartoon_success_fanfare.ogg');
+            fanfareAudio.volume = 0.5;
+
+            window.switchGame = function(gameId, btnElement) {
+                document.querySelectorAll('.game-btn').forEach(btn => btn.classList.remove('active'));
+                btnElement.classList.add('active');
+                
+                document.querySelectorAll('.game-screen').forEach(screen => screen.classList.remove('active'));
+                document.getElementById('screen-' + gameId).classList.add('active');
+            }
+
+            window.openModal = function() { document.getElementById('classModal').classList.add('active'); renderClassesModal(); }
+            window.closeModal = function() { document.getElementById('classModal').classList.remove('active'); document.getElementById('newClassName').value = ''; }
+
+            function renderClassesModal() {
+                const modalGrid = document.getElementById('modal-class-grid');
+                modalGrid.innerHTML = '';
+                const classNames = Object.keys(savedClasses);
+                if (classNames.length === 0) return;
+
+                classNames.forEach(name => {
+                    const count = savedClasses[name].length;
+                    const card = document.createElement('div');
+                    card.className = 'class-card';
+                    card.innerHTML = `<div style="font-weight: bold; font-size: 1.1rem; color: #2d3436;">${name}</div><div style="font-size: 0.85rem; color: #666; font-weight: bold;"><i class="fas fa-user-graduate"></i> Sĩ số: ${count} học sinh</div><div style="display:flex; gap:10px; margin-top:5px;"><button class="btn-play" onclick="selectClass('${name}'); closeModal();"><i class="fas fa-play"></i> Chọn</button><button class="btn-delete" onclick="deleteClass('${name}')"><i class="fas fa-trash"></i></button></div>`;
+                    modalGrid.appendChild(card);
+                });
+            }
+
+            window.selectClass = function(className) {
+                activeClassName = className;
+                students = savedClasses[className] ? [...savedClasses[className]] : []; 
+                document.getElementById('current-class-display').innerHTML = `<i class="fas fa-users"></i> ${className} <br> <span style="font-size: 0.85rem; font-weight: normal;">(${students.length} học sinh)</span>`;
+                
+                drawWheel();
+                renderBalloons();
+                renderClawPrizes();
+            }
+
+            window.deleteClass = function(className) {
+                if(confirm(`Cô có chắc chắn xóa lớp ${className}?`)) {
+                    delete savedClasses[className];
+                    try { localStorage.setItem('teacherPhuongClasses', JSON.stringify(savedClasses)); } catch(e){}
+                    if(activeClassName === className) { activeClassName = ""; students = []; document.getElementById('current-class-display').innerText = "Chưa chọn lớp"; }
+                    renderClassesModal();
+                }
+            }
+
+            window.handleExcelUpload = function(event) {
+                const classNameInput = document.getElementById('newClassName').value.trim();
+                if(!classNameInput) { alert("Nhập Tên Lớp trước nhé cô!"); event.target.value = ''; return; }
+                const file = event.target.files[0];
+                if (!file) return;
+
+                if (typeof XLSX === 'undefined') {
+                    const script = document.createElement('script');
+                    script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+                    script.onload = () => processExcel(file, classNameInput, event);
+                    document.body.appendChild(script);
+                } else {
+                    processExcel(file, classNameInput, event);
+                }
+            }
+
+            function processExcel(file, classNameInput, event) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1}); 
+                        
+                        let colCounts = {}; let nameCandidates = [];
+                        for (let i = 0; i < jsonData.length; i++) {
+                            let row = jsonData[i];
+                            if (!row) continue;
+                            for (let j = 0; j < row.length; j++) {
+                                let val = String(row[j] || "").trim();
+                                if (val.length >= 4 && val.length <= 40 && isNaN(val) && val.includes(" ")) {
+                                    let lower = val.toLowerCase();
+                                    if (!lower.includes("trường") && !lower.includes("giáo viên") && 
+                                        !lower.includes("họ và tên") && !lower.includes("bảng điểm") && !lower.includes("người lập")) {
+                                        if (!colCounts[j]) colCounts[j] = 0;
+                                        colCounts[j]++; nameCandidates.push({ col: j, val: val });
+                                    }
+                                }
+                            }
+                        }
+
+                        let targetCol = -1; let maxCount = 0;
+                        for (let col in colCounts) { if (colCounts[col] > maxCount) { maxCount = colCounts[col]; targetCol = parseInt(col); } }
+
+                        if (targetCol !== -1 && maxCount > 0) {
+                            const newStudents = nameCandidates.filter(item => item.col === targetCol).map(item => item.val);
+                            savedClasses[classNameInput] = newStudents;
+                            try { localStorage.setItem('teacherPhuongClasses', JSON.stringify(savedClasses)); } catch(e){}
+                            alert(`✅ Nạp thành công ${newStudents.length} học sinh`);
+                            document.getElementById('newClassName').value = ''; event.target.value = '';
+                            selectClass(classNameInput); closeModal();
+                        } else { alert("Không tìm thấy tên!"); }
+                    } catch(error) {}
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            function getShortName(fullName, totalStudents) {
+                if (totalStudents <= 25) return fullName; 
+                let parts = fullName.trim().split(' ');
+                if (parts.length <= 2) return fullName;
+                if (totalStudents > 35) return parts[parts.length - 2] + ' ' + parts[parts.length - 1];
+                return parts[parts.length - 3] + ' ' + parts[parts.length - 2] + ' ' + parts[parts.length - 1];
+            }
+
+
+            // ==========================================
+            // GAME 1: VÒNG QUAY 
+            // ==========================================
+            const canvas = document.getElementById("wheelCanvas");
+            const ctx = canvas.getContext("2d");
+            let currentAngle = 0; let isSpinningWheel = false; let lastPassedSlice = -1;
+
+            function drawWheel(angleOffset = 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const cx = canvas.width / 2; const cy = canvas.height / 2; 
+                
+                ctx.beginPath(); ctx.arc(cx, cy, 270, 0, 2 * Math.PI);
+                ctx.fillStyle = "#8b4513"; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = "#f1c40f"; ctx.stroke();
+                for(let i=0; i<36; i++) {
+                    const angle = (i * 10) * (Math.PI / 180);
+                    ctx.beginPath(); ctx.arc(cx + 258 * Math.cos(angle), cy + 258 * Math.sin(angle), 5, 0, 2 * Math.PI);
+                    ctx.fillStyle = "#ffffff"; ctx.fill();
+                }
+
+                if(!students || students.length === 0) return;
+
+                const sliceAngle = (2 * Math.PI) / students.length;
+                const sliceRadius = 242; 
+                let fontSize = students.length > 40 ? 11 : students.length > 30 ? 13 : 15;
+
+                for (let i = 0; i < students.length; i++) {
+                    const startAngle = currentAngle + angleOffset + (i * sliceAngle);
+                    const endAngle = startAngle + sliceAngle;
+                    
+                    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, sliceRadius, startAngle, endAngle);
+                    ctx.fillStyle = colors[i % colors.length]; ctx.fill();
+                    ctx.lineWidth = 1; ctx.strokeStyle = "#ffffff"; ctx.stroke();
+
+                    ctx.save();
+                    ctx.translate(cx, cy); ctx.rotate(startAngle + sliceAngle / 2);
+                    ctx.textAlign = "right"; ctx.fillStyle = "#ffffff";
+                    
+                    const emoji = animalEmojis[i % animalEmojis.length];
+                    let shortName = getShortName(students[i], students.length);
+                    ctx.font = `bold ${fontSize}px 'Nunito', Arial`;
+                    ctx.fillText(`${emoji} ${shortName}`, sliceRadius - 15, fontSize/3, sliceRadius - 35); 
+                    ctx.restore();
+                }
+                
+                if (isSpinningWheel) {
+                    let offset = (currentAngle + angleOffset + Math.PI / 2) % (2 * Math.PI);
+                    if (offset < 0) offset += 2 * Math.PI;
+                    const index = Math.floor((2 * Math.PI - offset) / sliceAngle) % students.length;
+                    document.getElementById("current-pointing").innerText = `${animalEmojis[index % animalEmojis.length]} ${students[index]}`;
+                    if (lastPassedSlice !== -1 && index !== lastPassedSlice) playTickSound();
+                    lastPassedSlice = index;
+                }
+            }
+
+            window.playWheel = function() {
+                if (isSpinningWheel || !students || students.length === 0) return;
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                isSpinningWheel = true;
+                try { winAudio.pause(); winAudio.currentTime = 0; } catch(e){}
+                
+                const spinTime = 4000 + Math.random() * 2000; 
+                const spinAngle = 25 + Math.random() * 15; 
+                let startTime = null;
+
+                function animate(timestamp) {
+                    if (!startTime) startTime = timestamp;
+                    const progress = timestamp - startTime;
+                    const easeOut = 1 - Math.pow(1 - (progress / spinTime), 4);
+                    const currentRotation = spinAngle * easeOut;
+
+                    drawWheel(currentRotation);
+
+                    if (progress < spinTime) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        currentAngle = (currentAngle + spinAngle) % (2 * Math.PI);
+                        isSpinningWheel = false; lastPassedSlice = -1; 
+                        
+                        const sliceAngle = (2 * Math.PI) / students.length;
+                        let offset = (currentAngle + Math.PI / 2) % (2 * Math.PI);
+                        if (offset < 0) offset += 2 * Math.PI;
+                        currentWinnerIndex = Math.floor((2 * Math.PI - offset) / sliceAngle) % students.length;
+                        
+                        const emoji = animalEmojis[currentWinnerIndex % animalEmojis.length];
+                        const fullName = students[currentWinnerIndex];
+                        document.getElementById("current-pointing").innerHTML = `<strong style="font-size: 1.4rem; color: #d63031;">${emoji} ${fullName}</strong>`;
+                        try { winAudio.play(); } catch(e){}
+                        setTimeout(() => showWinnerModal(fullName, emoji), 500);
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+
+
+            // ==========================================
+            // GAME 2: BẮN BÓNG BAY (PRO - PHÓNG PHI TIÊU)
+            // ==========================================
+            function renderBalloons() {
+                const area = document.getElementById('balloon-area');
+                area.innerHTML = '';
+                document.getElementById('balloon-count').innerText = students.length;
+                
+                if(students.length === 0) return;
+
+                students.forEach((name, index) => {
+                    const shortName = getShortName(name, students.length);
+                    const emoji = animalEmojis[index % animalEmojis.length];
+                    const color = colors[index % colors.length];
+                    
+                    const balloon = document.createElement('div');
+                    balloon.className = 'balloon';
+                    balloon.style.backgroundColor = color;
+                    balloon.style.animationDelay = `${Math.random() * 2}s`;
+                    
+                    balloon.innerHTML = `
+                        <div class="balloon-icon">${emoji}</div>
+                        <div class="balloon-name">${shortName}</div>
+                    `;
+                    area.appendChild(balloon);
+                });
+            }
+
+            window.shootRandomBalloon = function() {
+                if(!students || students.length === 0) return;
+                const area = document.getElementById('balloon-area');
+                const balloons = area.getElementsByClassName('balloon');
+                
+                let activeBalloons = [];
+                for(let i=0; i<balloons.length; i++) {
+                    if(balloons[i].innerHTML.indexOf('💥') === -1) {
+                        activeBalloons.push({ index: i, element: balloons[i] });
+                    }
+                }
+                
+                if(activeBalloons.length === 0) return;
+                
+                // Tiếng phi tiêu bay đến và cắm làm nổ bóng
+                window.playDartAndPopSound();
+
+                const randomChoice = activeBalloons[Math.floor(Math.random() * activeBalloons.length)];
+                
+                // Hiệu ứng vật lý
+                const dart = document.getElementById('dart-item');
+                const targetRect = randomChoice.element.getBoundingClientRect();
+                const areaRect = area.getBoundingClientRect();
+                
+                dart.style.display = 'block';
+                dart.style.top = (areaRect.height + 100) + 'px';
+                dart.style.left = '50%';
+                
+                setTimeout(() => {
+                    dart.style.top = (targetRect.top - areaRect.top + 30) + 'px';
+                    dart.style.left = (targetRect.left - areaRect.left + 20) + 'px';
+                    
+                    setTimeout(() => {
+                        dart.style.display = 'none';
+                        const name = students[randomChoice.index];
+                        const emoji = animalEmojis[randomChoice.index % animalEmojis.length];
+                        
+                        randomChoice.element.innerHTML = '<div style="font-size: 55px; margin-top: 15px;">💥</div>';
+                        randomChoice.element.style.background = 'transparent';
+                        randomChoice.element.style.boxShadow = 'none';
+                        randomChoice.element.style.animation = 'none';
+
+                        setTimeout(() => {
+                            currentWinnerIndex = randomChoice.index;
+                            try { winAudio.play(); } catch(e){}
+                            showWinnerModal(name, emoji);
+                        }, 500);
+                    }, 300);
+                }, 20);
+            }
+
+
+            // ==========================================
+            // GAME 3: MÁY GẮP THÚ (ARCADE)
+            // ==========================================
+            let isGrabbing = false;
+            
+            function renderClawPrizes() {
+                const area = document.getElementById('prizes-area');
+                area.innerHTML = '';
+                document.getElementById('claw-count').innerText = students.length;
+                if(students.length === 0) return;
+
+                students.forEach((name, index) => {
+                    // Cắt lấy tối đa 3 chữ cuối cùng để cho thẻ tên dài ra
+                    let parts = name.trim().split(' ');
+                    let mediumName = parts.length > 3 ? parts.slice(-3).join(' ') : name;
+                    
+                    const emoji = animalEmojis[index % animalEmojis.length];
+                    const color = colors[index % colors.length];
+                    
+                    const itemWrap = document.createElement('div');
+                    itemWrap.className = 'prize-item';
+                    itemWrap.id = `claw-prize-${index}`;
+                    
+                    itemWrap.innerHTML = `
+                        <div class="prize-ball" style="border-color: ${color}">
+                            <div class="prize-emoji">${emoji}</div>
+                        </div>
+                        <div class="prize-name-tag">${mediumName}</div>
+                    `;
+                    area.appendChild(itemWrap);
+                });
+                
+                document.getElementById('claw-crane').style.left = '50%';
+                document.getElementById('crane-wire').style.height = '35px';
+                document.getElementById('crane-claw').classList.remove('closed');
+            }
+
+            window.playClaw = function() {
+                if(isGrabbing || !students || students.length === 0) return;
+                isGrabbing = true;
+                
+                const crane = document.getElementById('claw-crane');
+                const wire = document.getElementById('crane-wire');
+                const claw = document.getElementById('crane-claw');
+                const hook = document.getElementById('crane-hook'); 
+                
+                const availablePrizes = [];
+                for(let i=0; i<students.length; i++) {
+                    const el = document.getElementById(`claw-prize-${i}`);
+                    if(el && el.style.visibility !== 'hidden') availablePrizes.push({index: i, element: el});
+                }
+                if(availablePrizes.length === 0) { isGrabbing = false; return; }
+                
+                const target = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
+                
+                const areaWidth = document.getElementById('prizes-area').offsetWidth;
+                const ballLeft = target.element.offsetLeft;
+                let targetPercent = ((ballLeft + 35) / areaWidth) * 100;
+                if(targetPercent < 20) targetPercent = 20; if(targetPercent > 90) targetPercent = 90;
+                
+                crane.style.left = targetPercent + '%';
+                
+                setTimeout(() => {
+                    wire.style.height = '280px';
+                    
+                    setTimeout(() => {
+                        claw.classList.add('closed');
+                        playTickSound();
+                        
+                        setTimeout(() => {
+                            // Cột khối đồ chơi vào tay gắp và Kéo lên
+                            target.element.style.position = 'absolute';
+                            target.element.style.bottom = '-95px';
+                            target.element.style.left = '-35px';
+                            target.element.style.transition = 'none';
+                            claw.appendChild(target.element); 
+                            
+                            wire.style.height = '35px';
+                            
+                            setTimeout(() => {
+                                crane.style.left = '10%'; 
+                                
+                                setTimeout(() => {
+                                    claw.classList.remove('closed'); 
+                                    target.element.style.transition = 'bottom 0.5s cubic-bezier(0.55, 0.085, 0.68, 0.53)';
+                                    target.element.style.bottom = '-200px';
+                                    
+                                    setTimeout(() => {
+                                        target.element.style.visibility = 'hidden'; 
+                                        
+                                        currentWinnerIndex = target.index;
+                                        const fullName = students[target.index];
+                                        const emoji = animalEmojis[target.index % animalEmojis.length];
+                                        
+                                        showWinnerModal(fullName, emoji);
+                                        isGrabbing = false;
+                                        
+                                    }, 500);
+                                }, 1200);
+                            }, 1200);
+                        }, 500);
+                    }, 1200);
+                }, 1000);
+            }
+
+            // ==========================================
+            // MODAL CHÚC MỪNG CHUNG & ĐỒNG BỘ 3 TRÒ CHƠI
+            // ==========================================
+            function showWinnerModal(name, emoji) {
+                document.getElementById('winner-name-display').innerText = name;
+                document.getElementById('winner-icon-display').innerText = emoji; 
+                document.getElementById('winner-subtitle-display').innerHTML = subtitles[Math.floor(Math.random() * subtitles.length)];
+                document.getElementById('winner-quote-display').innerText = quotes[Math.floor(Math.random() * quotes.length)];
+                
+                document.getElementById('winnerModal').classList.add('active');
+
+                // Âm thanh vinh danh hoành tráng
+                try { 
+                    fanfareAudio.currentTime = 0; winAudio.currentTime = 0;
+                    fanfareAudio.play(); setTimeout(() => winAudio.play(), 300);
+                } catch(e){}
+                
+                // HIỆU ỨNG PHÁO GIẤY KIM TUYẾN CONFETTI TỪ 2 GÓC TRÁI PHẢI
+                if(typeof confetti === 'function') {
+                    const duration = 2500;
+                    const end = Date.now() + duration;
+
+                    (function frame() {
+                        confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: colors, zIndex: 99999 });
+                        confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: colors, zIndex: 99999 });
+                        if (Date.now() < end) requestAnimationFrame(frame);
+                    }());
+                }
+            }
+
+            window.closeWinnerModal = function() {
+                document.getElementById('winnerModal').classList.remove('active');
+                try{ fanfareAudio.pause(); winAudio.pause(); }catch(e){}
+            }
+
+            window.removeCurrentWinner = function() {
+                if(currentWinnerIndex > -1) {
+                    students.splice(currentWinnerIndex, 1);
+                    currentWinnerIndex = -1;
+                    
+                    savedClasses[activeClassName] = students;
+                    document.getElementById('current-class-display').innerHTML = `<i class="fas fa-users"></i> ${activeClassName} <br> <span style="font-size: 0.85rem; font-weight: normal;">(${students.length} học sinh)</span>`;
+                    
+                    currentAngle = 0;
+                    drawWheel();
+                    renderBalloons();
+                    renderClawPrizes();
+                    
+                    closeWinnerModal();
+                    document.getElementById('current-pointing').innerText = "Đã gỡ tên khỏi vòng quay";
+                }
+            }
+
+            const classNamesKeys = Object.keys(savedClasses);
+            if(classNamesKeys.length > 0) selectClass(classNamesKeys[0]);
+            
+        }; 
+    </script>
+</body>
+</html>
